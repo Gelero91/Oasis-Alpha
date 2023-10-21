@@ -1,0 +1,384 @@
+﻿CREATION MOTEUR DE JEUX DUNGEON CRAWLER
+
+-----------------SPRITES : MODIFICATION ET AJOUT------------------------- FAIT
+
+Pour ajouter sprite :
+- ajouter au html
+- "const spriteIds", ajouter le nom du type de sprite à la liste (ligne 488)
+- "const spriteData", ajouter le sprite du html à la liste (ligne 650)
+
+
+-----------------gauche/droite : ROTATION 90°------------------------- FAIT
+
+  things changed for a DC :
+
+  angles fixes : 0, 90, 180, 270°
+
+  ce qui modifie considérablement les problèmes de gameplay, combat, scripts, etc.
+
+  on avance d'une distance fixe : case à une autre case,
+
+  initplayer, avant modification :
+
+    initPlayer()
+    {
+      this.player =  {
+        x : 16 * this.tileSize, // current x, y position in game units
+        y : 10 * this.tileSize,
+        z : 0,
+        dir : 0,   // turn direction,  -1 for left or 1 for right.
+        rot : 0,   // rotation angle; counterclockwise is positive.
+        speed : 0, // forward (speed = 1) or backwards (speed = -1).
+
+        // Instaurer inertie/accélération
+        moveSpeed : Math.round(this.tileSize/(DESIRED_FPS/60.0*16)),
+        rotSpeed : 1.5 * Math.PI / 180
+      }
+    }
+
+  dir, rot et speed sont à étudier.
+
+  Créer un système pour éviter ces calculs lourd et éviter une cascade de décalage.
+
+  Proposition de ChatGPT pour des résultats exacts sans virgule flottante :
+
+  const degreesToRadians = Math.PI / 180; // Conversion degrés en radians
+  const rotationSpeed = 90 * degreesToRadians; // Vitesse de rotation en radians par étape
+
+  if (left) {
+    // Tourner à gauche (anti-horaire)
+    this.player.rot -= rotationSpeed;
+    if (this.player.rot < 0) {
+      this.player.rot += 2 * Math.PI; // Assurez-vous que l'angle reste entre 0 et 2π radians
+    }
+  } else if (right) {
+    // Tourner à droite (horaire)
+    this.player.rot += rotationSpeed;
+    if (this.player.rot >= 2 * Math.PI) {
+      this.player.rot -= 2 * Math.PI; // Assurez-vous que l'angle reste entre 0 et 2π radians
+    }
+  }
+
+-----------------POSITION DE DEPART------------------------- FAIT
+
+  La caméra ne respectait pas l'idée de "grille".
+
+  Cette dernière était entre 4 cases, et non pas au milieu d'une case bien définie.
+
+  J'ai corrigé le problème de la même façon qu'avec les sprites : on ajoute la motié de la taille d'une case à la position du joueur.
+
+-----------------UNITE TEMPORELLE------------------------- FAIT
+
+  cf: fonction gameCycle()
+      Il faut donc initialiser les éventuelles nouvelles variables
+
+  Problème : le temps est un concept relatif et difficile à expliquer à une machine
+
+  Solution : on utilise l'heure réelle pour calculer les secondes qui passe.
+
+  1 - initialiser la variable en début de code
+        var totalTimeElapsed = 0;
+  2 - permettre au gameCycle() de prendre en compte chaque seconde qui passe.
+  3 - créer un bouléen pour autoriser les actions après une seconde de délai.
+        var yourTurn = True;
+
+-----------------ANIMATIONS DE MOUVEMENT------------------------- TOOO DOOO, très important pour la suite
+
+  animation de déplacement/rotation 
+
+  utiliser le timer général pour créer un délai :
+      let timeBasedFactor = timeElapsed / UPDATE_INTERVAL;
+
+  problème : l'appuis d'une touche peut être successive et fausser l'input.
+
+  solution : créer condition bouléenne pour autoriser un nouel input jusqu'à fin de transition.
+
+  problème II : l'animation ne peut pas être calculé dans la fonction move(timeElapsed), 
+  car il faut une double condition pour qu'elle ait lieu. Si le calcul se fait DANS la fonction,
+  le rendu sera gelé dans son intégralité jusqu'à la fin de l'animation (voir plus, à tester).
+
+  solution II : pour une animation complète, il faudra une variable indépendante
+  pour savoir que l'animation doit continuer (timeElapsed), même si la touche n'est plus appuyé (left/right && yourturn = true)
+  InOtherWords - la pression de la touche est un élément déclancheur. Le reste doit se faire parrallèlement au rendu du jeux.
+
+-----------------DEPLACEMENT-------------------------
+
+  la caméra doit avancer d'exactement UNE UNITE (tileSize)
+
+  problème : détection de collision et des événement.
+
+  solution : selon l'angle de la caméra, on doit pouvoir "sonder" la case adjacente.
+
+  à l'orgine, la modification de position prenait en compte le vecteur X et Y
+
+      let newX = this.player.x + Math.cos(this.player.rot) * moveStep
+      let newY = this.player.y + -Math.sin(this.player.rot) * moveStep
+
+  Dans le cas d'un Dungeon Crawler, les mouvement se font sur un plan unidimensionnel.
+  UNE SEULE VALEUR est à modifier, selon l'orientation du joueur.
+  Orientation est -> this.player.x + tileSize
+  Orientation sud -> this.player.y + tileSize
+  etc.
+  etc.
+
+  Il suffit d'ajouter ou soustraire la valeur tileSize à this.player.x ou this.player.y
+
+  Pour l'avancée, seul le vecteur X OU Y est modifié.
+  La variable animationDirection est positive ou négative (1 ou -1). Elle multiplie la distance parcourue, 
+  en négatif ou en positif (on avance ou recul).
+
+-----------------REVISION DES MODIF DE DEPLACEMENT-------------------------
+
+  1 -> Revoir angles en radians pour les rotations. Etablir des limites pour les rotations (π/2 rad = limite)
+
+  if (this.player.rot == 0 || this.player.rot == Math.PI) {
+    this.player.x += animationDirection * 100; // Déplacement horizontal
+  } else if (this.player.rot == Math.PI/2 || this.player.rot == 3*Math.PI/2) {
+    this.player.y += animationDirection * 100; // Déplacement vertical
+  }
+
+  2 -> Revoir algorithme pour forward et backward, pour l'instant les directions ne sont pas correctes.
+  3 -> Revoir la distance parcourue pour forward et backward
+
+-----------------UNITE DE POSITION INGAME-------------------------
+
+  problème : pos.x et pos.y sont des nombres à plusieurs chiffres
+
+  solution : créer une unité de mesure ingame pour créer un intermédiaire compréhensible.
+
+---------------MULTIJOUEUR
+
+  exporter toutes les secondes des variables spécifiques de l'objet Player.
+
+  Importer toutes les secondes ces variables étrangères et les transferer à un sprite.
+
+  Ou créer objet spécial pour les imports exports pour les traiter simultanément.
+
+----------------ANGLE DE ROTATION
+
+  IDEE : coriger l'angle lors de l'ancée vers la case suivante ou être moins absolu,
+        Comme créer des fourchettes d'approximation pour les angles à 90°
+        l'incrémentation est problématique, elle accumule des approximations avec les virgules flottantes.
+        Il faudrait créer une valeur NORD, EST, SUD, OUEST, qui servira de repère pour corriger les erreurs.
+      /!\  N E S O sont des valeurs calculées au lancement du jeux. Ce sont des valeurs étalon. 
+
+  pour s'assurer que this.player.rot soit toujours positif :
+
+      if (this.player.rot < 0) {
+        this.player.rot += 2 * Math.PI;
+      } else if (this.player.rot > 2 * Math.PI) {
+        this.player.rot -= 2 * Math.PI;
+      }
+
+  L'idée était la bonne. La caméra est automatiquement centrée sur un des axes cardinaux, il n'y a plus d'erreur possible.
+
+  Solution ultérieur : les angles sont calculés en radiants (2π = 1 tour complet = 360°).
+                      4 valeurs cardinales sont établies, et fixées selon des angles en radiants (nord, est, sud, ouest)
+                      les angles de l'animation de rotation sont fixes, précalculés et les valeurs cardinales (target), évite les erreurs.
+
+----------------CENTRAGE joueur
+
+  PROBLEME : Le jour est sur un carreau de la grille, mais il n'est jamais centré par rapport à celle-ci.
+
+  SOLUTION : - créer une nouvelle valeur étalon
+            - carreau de grille, plutôt qu'une position de la camera.
+            - centrer automatiquement la caméra sur ledit carreau.
+
+  Solution Choisie : Lors du déclenchement de l'avancement ou du recul, la position à atteindre est définie.
+                    La position du joueur est ajustée à la FIN de l'animation.
+                    Peu élégant mais efficace.
+
+----------------DIALOGUE, INTERACTION, etc
+
+  Problème : la console sert pas à ça...
+
+  Solution : rajoute un encart HTML directement sur la page !
+
+----------------PLAFOND ET SOL 
+
+  ceilingHeight est une variable déclarée en début de code.
+  this.ceilingHeight = ceilingHeight;
+  donc, en modifiant la variable ceilingHeight, l'objet this.ceilingHeight est mis à jour.
+  Avec la même logique, on peut modifier tout le reste des valeurs (texture, présence du plafond, etc)
+
+  les événements téléporteurs modifient ces valeurs selon l'endroit téléporté (intérieur/extérieur/nouvelle salle)
+
+  floorTexture et ceilingTexture : variables déclarées en début de code, modifié par les événements.
+  Après déclaration des modifications, il faut rappeler "loadFloorCeilingImages()" pour que le moteur les prennents en compte.
+
+  IDEE : utiliser le même principe que pour les textures murales (plusieurs textures sur la même image)
+
+---------------- map vierge :
+
+      worldMap = [
+        [3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+        [3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]
+    ];
+
+    carte alpha ?
+
+    [[1,1,1,1,1,1,1,1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3],[1,0,0,0,0,0,0,1,3,0,0,0,0,0,0,0,0,0,0,3,3,3,3,3],[1,0,0,0,0,0,0,1,3,1,0,0,0,0,0,0,0,0,0,0,3,3,3,3],[1,1,1,1,0,1,1,1,3,1,0,0,0,0,0,0,0,1,1,1,1,1,3,3],[2,2,0,0,0,0,0,1,2,0,0,0,0,0,0,0,0,1,0,0,0,1,3,3],[2,0,0,0,0,0,0,0,6,0,0,0,0,0,0,0,0,6,0,0,0,1,0,3],[2,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,0,1,0,0,0,1,0,3],[2,2,1,1,0,1,1,1,3,1,0,0,0,0,0,0,0,1,1,1,1,1,0,3],[1,1,0,0,0,0,0,1,3,1,0,0,0,0,0,0,0,0,0,0,0,0,0,3],[1,1,0,1,1,1,0,1,3,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3],[1,0,0,0,1,0,0,1,3,3,3,1,1,6,1,1,0,0,3,3,3,3,3,3],[1,0,0,0,1,0,0,1,3,3,3,1,0,0,0,1,3,3,3,3,3,3,3,3],[1,0,0,0,1,0,0,1,3,3,3,1,0,0,0,1,3,0,0,0,0,0,0,3],[1,3,6,3,1,1,1,1,3,3,3,1,0,0,0,1,3,0,0,0,0,3,3,3],[3,3,0,3,3,3,3,3,3,3,3,1,1,1,1,1,3,3,3,0,3,3,3,3],[3,0,0,3,3,3,0,0,3,3,3,3,3,3,3,3,3,0,0,0,3,3,3,3],[3,0,3,3,0,0,0,0,0,3,3,3,0,0,0,0,0,0,3,0,0,3,3,3],[3,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3,3,3,3,0,0,0,3,3],[3,3,3,3,0,0,0,0,0,3,3,3,3,3,0,0,0,3,0,0,3,0,3,3],[3,0,0,3,3,3,0,3,3,3,0,0,0,3,0,0,0,3,0,3,3,0,3,3],[3,0,0,3,3,3,0,3,0,0,0,0,0,3,0,0,0,3,0,3,0,0,0,3],[3,0,0,0,0,0,0,0,0,3,0,0,0,3,3,0,3,3,0,3,0,0,0,3],[3,0,0,3,3,3,3,3,3,3,0,0,0,3,3,0,0,0,0,3,0,0,0,3],[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]]
+
+---------------- combat
+
+Il faut :
+-  PV joueur
+  -> intégrer dans l'objet Player 
+-  PV ennemi
+  -> intégrer dans l'objet sprite (hp)
+-  Attaque joueur (attack)
+-  Attaque ennemi
+  -> Méthodes  dans les deux objets
+Delai entre deux attaques
+-> utiliser timer des fonctions d'animation
+
+2POSSIBILITE :
+
+TEMPS REEL et TOUR PAR TOUR
+-> Le temps réel demande l'établissement d'unité temporelles
+-> Le tour à tour est plus facilement maitrisable : une action du joueur, NPC, joueur, etc.
+        - L'action est le déclencheur
+
+TEMPS REEL, logique trouvée :
+- Créer compteur général, 6sec = 1"tick" (il est basé sur l'horloge interne du kernel)
+- Quand un tick :
+    - réinitialise le compteur de tour des sprites
+    - à tick suivant, déclence les sprites (action ou déplacement)
+
+TOUR A TOUR :
+- A chaque action du joueur, les sprites se déclenches 
+
+
+
+Trigger pour les attaques du PNJ
+  - créer fonction pour définir les éléments adjacents au joueur (déclencheur d'attaque ennemi)
+
+Afficher PV joueur dans encart à droite
+Afficher dégats dans Output (fait)
+
+N.B. : 
+- on ne peut pas DELETE une entrée des sprites, il va falloir créer un autre type pour établir leur mort. (pour l'instant 0 :  Enemy; 10 : dead)
+
+NEXT :
+- Dans le constructeur, selon le type de sprite, les caractéristiques du sprite diffère (bloc conditionnel qui vérifie le type)
+- 
+
+---------------- détection collision sprite
+
+créer tableau des position des sprites en nombre entier, comme les propriétés des murs.
+ajouter détection de collision, réutiliser dans un premier temps l'algorithme pour les actions.
+-> créer fonction plus tard qui associe ces deux concepts.
+-> 2ème tableau renvoyant à l'ID des sprites plutôt qu'à une position relative (x  et y, plutôt que x*tileSize+half et y*tileSize+half)
+    - optimisation des algo de comparaison
+
+---------------- Sky :
+
+On remplace la fonction "drawSolidCeiling" par setpixel() d'une image importée comme tout autre texture.
+
+Notes sur l'algorithme :
+
+    drawSolidCeiling() {
+        // colore chaque pixel, seulement la moitié de la hauteur de l'écran.
+        for (let y = 0; y < this.displayHeight / 2; ++y) {
+            // colore chaque ligne, les unes à la suite des autres
+            for (let x = 0; x < this.displayWidth; ++x) {
+                // le backbuffer doit être l'image.... mais comment ? faut d'abord getpixel.
+                // On peut tenter un get pixel juste avant, qui reprend exactement chaque coordonnée X et Y ?
+                Raycaster.setPixel(this.backBuffer, x, y, 0, 151, 239, 240);
+            }
+        }
+    }
+
+---------------- Flash :
+
+- Get et Set pixel récupère et position chaque pixel sur le canvas.
+- Le "flash" est une modification des valeurs qui ont été "get", avant d'être "set" dans le bloc conditionnel DrawSpriteStrip();
+
+J'ai essayé de faire falsher le sprite, lui ajoutant une valeur "flashed", mais je n'y suis pas arrivé.
+
+idée :  - on provoque le flash lors du chargement du sprite.
+        - modification des valeurs appliquées à la fonction : drawTexturedRec()
+
+Solution : Ajoute une valeur à l'appel de fonction "drawTexturedRec" - cette valeur est stocké directement dans le sprite rendu.
+           Ainsi, aucun conflit, et l'intensité du flash est parfaitement gérable !
+
+---------------- OUTPUT et modification du texte :
+
+<font>
+
+cette balise est considérée comme "deprecated", mais semble compatible avec TOUT.
+Le CSS est devenu une norme et cette fonction a été oubliée... C'est très con.
+
+---------------- amélioration animation mouvement :
+
+if angle < targetAngle => angle++
+- ça évitera le saut d'image je prennents
+
+---------------- amélioration doc html :
+
+Les images en base64 sont stoquées dans un JSON qui est parsed au chargement de la page.
+Les div sont ajoutées et nommées selon les infos du JSON.
+
+---------------- Sky :
+
+mainCanvas, displayWidth = 640, displayHeight = 360
+
+SkyImg
+largeur :640
+hauteur :360/2=180
+
+finalement j'ai fait un dégradé pour le ciel, ça me gonflait.
+
+---------------- variable height walls :
+
+https://permadi.com/1996/05/ray-casting-tutorial-14/
+
+Solution :
+DrawWallStrip()->   dans la boucle de rendu des étages, on décale la rangée de pixel visée (textureY).
+                    En décalant la rangée de pixel, on vise la texture suivante avec un système de conditions.
+
+Pour créer un étage plus haut que les autres :
+  1 - Créer une texture transparente pour créer une illusion ?
+
+
+---------------- amélioration rotation :
+
+le target angle est définit.
+A chaque cycle, on ajoute une fraction de rotation, jusqu'à atteindre l'angle target.
+On suprime le nom d'image forcé (8 à l'occorence), ça va assouplir l'animation et réduire le saut d'image.
+
+
+---------------- SHADDING :
+
+https://permadi.com/1996/05/ray-casting-tutorial-19/
+
+
+---------------- sprite angle :
+
+
+
+
+---------------- sprite animation :
+
