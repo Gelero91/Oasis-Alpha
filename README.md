@@ -27,5 +27,5 @@ Appuyez sur espace ou "f" (comme "fonction") pour passer les portes, discuter, o
 ![3](https://github.com/Gelero91/Oasis-Alpha/assets/113846666/fb6b9563-c018-4151-bec8-0fa7d51ca1ae)
 
 Algorithmes de raycasting introduit par Scott Roth dans les années 1978-79.
-Version très modifiée de l'architecture JS/Html5 d'Andrew Lim (https://github.com/andrew-lim/), 
-elle même basée sur les tutoriels de 1996 (https://permadi.com/1996/), J.Seidelin (https://dev.opera.com/authors/jacob-seidelin/) et de Lode (https://lodev.org/cgtutor/raycasting.html).
+Basé que une version très modifiée de l'architecture JS/Html5 de J.Seidelin (https://dev.opera.com/authors/jacob-seidelin/) par Andrew Lim (https://github.com/andrew-lim/), 
+elle même basée sur les tutoriels de Permadi de 1996 (https://permadi.com/1996/) et de Lode (https://lodev.org/cgtutor/raycasting.html).
