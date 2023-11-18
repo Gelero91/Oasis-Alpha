@@ -225,7 +225,8 @@ class Sprite {
     enemyAttackUpdate(player) {
         if (this.hp <= 0) {
             let entry = "The enemy is dead. <br>  You won 10xp points !";
-            this.talk(entry) ;
+            // on affiche le visage du joueur
+            this.talk(entry,"facePlayer");
             
             player.xp += 10;
 
@@ -1895,7 +1896,7 @@ this.backBuffer = this.mainCanvasContext.createImageData(this.displayWidth, this
                     if (spriteType == 0) {
                         // Créer fonction pour le combat en général, avec condition sort, etc...
                         // Timer entre les deux, utiliser timer général.
-                        this.sprites[i].playerAttack(this.player.attack);
+                        setTimeout(() => this.sprites[i].playerAttack(this.player.attack), 500);
                         setTimeout(() => this.sprites[i].enemyAttackUpdate(this.player), 500);
 
                     // remplacer cette suite de condition par des "CASE"
