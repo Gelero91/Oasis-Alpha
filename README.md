@@ -1,6 +1,8 @@
 ﻿# Oasis-Alpha
 Oasis Alpha Ouverte - Version publique d'Oasis Alpha
 
+VERSION LIVE : https://gelero91.github.io/
+
 "Oasis" est un petit projet personnel qui m'a permis de souffler entre les exercices du bootcamp : une véritable déclaration d'amour aux gros pixels, avec une pointe de nostalgie. À présent, c'est un projet sur lequel affiner mes compétences en JavaScript (aucune dépendance autorisée), HTML5 ainsi qu'en CSS.
 
 Ce projet représente la concrétisation d'un rêve pour moi. Mes premiers pas dans le domaine du développement ont été marqués par la découverte d'un livre qui, à l'époque, m'intimidait énormément en tant qu'enfant. Ce dernier nous apprenait à créer des jeux "2.5D" comme celui que je vous présente. Après 20 ans, je l'ai perdu, mais ma tête regorge d'idées farfelues accumulées au fil des années !
