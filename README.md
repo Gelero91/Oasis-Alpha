@@ -17,6 +17,9 @@ Qu'est-ce que c'est ?
 - Mode multijoueur à venir, prévu en Node.JS et SQL
 - Site vitrine pour joueur en ligne prévu en React
 
+(Photo de la version Alpha 0.8) :
+
+![V0 8](https://github.com/Gelero91/Oasis-Alpha/assets/113846666/ba74a8dc-a09e-4f27-96c6-79a339d49052)
 
 Photo de l'Alpha v0.6.1 avec une Style d'UI (by Ronen Ness) modifiée pour l'évenement "Diversi'Tech" (29/11/2023) :
 
